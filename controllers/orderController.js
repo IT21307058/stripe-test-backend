@@ -1,6 +1,7 @@
 const Order = require("../models/order");
 const stripe = require("../config/stripe");
 const logger = require("../config/logger");
+const { sendPaymentReceipt } = require("../config/mailer");
 
 // Product configurations
 const PRODUCTS = {
@@ -138,8 +139,15 @@ exports.handleWebhook = async (req, res) => {
           order.paymentStatus = "completed";
           order.stripePaymentIntentId = session.payment_intent;
           await order.save();
-          
+
           logger.info(`Order ${order._id} marked as completed`);
+
+          // Send payment receipt email (best-effort)
+          try {
+            await sendPaymentReceipt(order);
+          } catch (mailErr) {
+            logger.error(`Failed to send payment receipt for order ${order._id}: ${mailErr.message}`);
+          }
         }
       } catch (error) {
         logger.error(`Error updating order: ${error.message}`);
