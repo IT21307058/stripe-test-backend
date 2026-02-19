@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
 transporter.verify().then(() => {
   logger.info('Mail transporter configured');
 }).catch((err) => {
-  logger.warn('Mail transporter verification failed:', err.message);
+  logger.warn('Mail transporter verification failed', err);
 });
 
 async function sendPaymentReceipt(order) {
@@ -53,7 +53,7 @@ async function sendPaymentReceipt(order) {
     logger.info(`Payment receipt email sent for order ${order._id} to ${to} (messageId: ${info.messageId})`);
     return info;
   } catch (err) {
-    logger.error(`Failed to send payment receipt for order ${order._id}: ${err.message}`);
+    logger.error(`Failed to send payment receipt for order ${order._id}`, err);
     throw err;
   }
 }

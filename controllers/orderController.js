@@ -146,7 +146,7 @@ exports.handleWebhook = async (req, res) => {
           try {
             await sendPaymentReceipt(order);
           } catch (mailErr) {
-            logger.error(`Failed to send payment receipt for order ${order._id}: ${mailErr.message}`);
+            logger.error(`Failed to send payment receipt for order ${order._id}`, mailErr);
           }
         }
       } catch (error) {

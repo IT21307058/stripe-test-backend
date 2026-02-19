@@ -18,6 +18,7 @@ const errorHandler = require("./middlewares/errorhandler");
 const userRoutes = require("./routes/userRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 const logger = require("./config/logger");
 
 const app = express();
@@ -43,6 +44,9 @@ app.use("/api/products", (req, res) => {
     message: "This is new feature change, a new route for products samin bhanuka",
   });
 });
+
+// Admin diagnostics routes (protected by TEST_MAIL_KEY if set)
+app.use('/api/admin', adminRoutes);
 
 //error handler
 app.use(errorHandler);
