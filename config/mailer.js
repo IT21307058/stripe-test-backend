@@ -5,7 +5,7 @@ const logger = require('./logger');
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST || 'smtp.gmail.com',
   port: Number(process.env.MAIL_PORT) || 587,
-//   secure: process.env.MAIL_SECURE === 'true' || false, // true for 465, false for other ports
+  secure: process.env.MAIL_SECURE === 'true' || false, // true for 465, false for other ports
   auth: {
     user: process.env.MAIL_USER || process.env.SMTP_USERNAME,
     pass: process.env.MAIL_PASS || process.env.SMTP_PASSWORD,
