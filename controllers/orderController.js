@@ -22,7 +22,7 @@ exports.createCheckoutSession = async (req, res) => {
   try {
     // Check if Stripe is configured
     if (!stripe) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: "Payment system not configured. Please contact support.",
         message: "Stripe API key is missing. Please configure STRIPE_SECRET_KEY in .env file."
       });
@@ -96,7 +96,7 @@ exports.createCheckoutSession = async (req, res) => {
 
     logger.info(`Checkout session created for order ${order._id}`);
 
-    res.status(200).json({ 
+    res.status(200).json({
       sessionId: session.id,
       url: session.url,
       orderId: order._id
@@ -131,7 +131,7 @@ exports.handleWebhook = async (req, res) => {
   switch (event.type) {
     case "checkout.session.completed":
       const session = event.data.object;
-      
+
       try {
         // Update order status
         const order = await Order.findById(session.metadata.orderId);
@@ -140,7 +140,7 @@ exports.handleWebhook = async (req, res) => {
           order.stripePaymentIntentId = session.payment_intent;
           await order.save();
 
-          logger.info(`Order ${order._id} marked as completed`);
+          // logger.info(`Order ${order._id} marked as completed`);
 
           // Send payment receipt email (best-effort)
           try {
@@ -156,14 +156,14 @@ exports.handleWebhook = async (req, res) => {
 
     case "payment_intent.payment_failed":
       const paymentIntent = event.data.object;
-      
+
       try {
         // Find order by payment intent and mark as failed
         const order = await Order.findOne({ stripePaymentIntentId: paymentIntent.id });
         if (order) {
           order.paymentStatus = "failed";
           await order.save();
-          
+
           logger.info(`Order ${order._id} marked as failed`);
         }
       } catch (error) {
