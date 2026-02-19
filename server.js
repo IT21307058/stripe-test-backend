@@ -40,7 +40,7 @@ app.use("/api/orders", orderRoutes);
 
 app.use("/api/products", (req, res) => {
   return res.status(200).json({
-    message: "This is new feature change, a new route for products samin",
+    message: "This is new feature change, a new route for products samin bhanuka",
   });
 });
 
