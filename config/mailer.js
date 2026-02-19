@@ -10,10 +10,10 @@ const transporter = nodemailer.createTransport({
     user: process.env.MAIL_USER || process.env.SMTP_USERNAME,
     pass: process.env.MAIL_PASS || process.env.SMTP_PASSWORD,
   },
-//   tls: {
-//     // Allow self-signed certs in dev if needed (set MAIL_TLS_REJECT to 'true' to enforce)
-//     rejectUnauthorized: process.env.MAIL_TLS_REJECT === 'true' || false,
-//   },
+  tls: {
+    // Allow self-signed certs in dev if needed (set MAIL_TLS_REJECT to 'true' to enforce)
+    rejectUnauthorized: false,
+  },
 });
 
 // Verify transporter at startup (non-blocking)
