@@ -3,7 +3,9 @@ const router = express.Router();
 const orderController = require("../controllers/orderController");
 
 // Create checkout session
-router.post("/create-checkout-session", orderController.createCheckoutSession);
+// router.post("/create-checkout-session/:productKey", orderController.createCheckoutSession);
+
+router.get("/pay/:productType", orderController.payRedirectToStripe);
 
 // Get order by ID
 router.get("/:orderId", orderController.getOrder);

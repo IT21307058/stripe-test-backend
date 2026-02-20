@@ -4,15 +4,15 @@ const orderSchema = new mongoose.Schema(
   {
     customerName: {
       type: String,
-      required: [true, "Customer name is required"],
+      // required: [true, "Customer name is required"],
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
+      // required: [true, "Email is required"],
     },
     phone: {
       type: String,
-      required: [true, "Phone number is required"],
+      // required: [true, "Phone number is required"],
     },
     secondPhone: {
       type: String,
@@ -20,20 +20,20 @@ const orderSchema = new mongoose.Schema(
     },
     mailingAddress: {
       type: String,
-      required: [true, "Mailing address is required"],
+      // required: [true, "Mailing address is required"],
     },
     productType: {
       type: String,
-      required: [true, "Product type is required"],
+      // required: [true, "Product type is required"],
       enum: ["chatgpt-class", "book"],
     },
     productName: {
       type: String,
-      required: [true, "Product name is required"],
+      // required: [true, "Product name is required"],
     },
     amount: {
       type: Number,
-      required: [true, "Amount is required"],
+      // required: [true, "Amount is required"],
     },
     currency: {
       type: String,
@@ -41,7 +41,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["pending", "completed", "failed"],
+      enum: ["pending", "completed", "failed", "expired"],
       default: "pending",
     },
     stripeSessionId: {

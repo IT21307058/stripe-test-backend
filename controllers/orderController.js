@@ -18,47 +18,121 @@ const PRODUCTS = {
 };
 
 // Create checkout session
-exports.createCheckoutSession = async (req, res) => {
+// exports.createCheckoutSession = async (req, res) => {
+//   try {
+//     // Check if Stripe is configured
+//     if (!stripe) {
+//       return res.status(503).json({
+//         error: "Payment system not configured. Please contact support.",
+//         message: "Stripe API key is missing. Please configure STRIPE_SECRET_KEY in .env file."
+//       });
+//     }
+
+//     const { productType, customerName, email, phone, secondPhone, mailingAddress } = req.body;
+
+//     // Validate product type
+//     if (!PRODUCTS[productType]) {
+//       return res.status(400).json({ error: "Invalid product type" });
+//     }
+
+//     // Validate required fields
+//     if (!customerName || !email || !phone || !mailingAddress) {
+//       return res.status(400).json({ error: "All required fields must be provided" });
+//     }
+
+//     const product = PRODUCTS[productType];
+
+//     // Create order in database
+//     const order = await Order.create({
+//       customerName,
+//       email,
+//       phone,
+//       secondPhone: secondPhone || "",
+//       mailingAddress,
+//       productType,
+//       productName: product.name,
+//       amount: product.price / 100, // Convert cents to dollars
+//       currency: "usd",
+//       paymentStatus: "pending",
+//     });
+
+//     // Create Stripe checkout session
+//     const session = await stripe.checkout.sessions.create({
+//       payment_method_types: ["card"],
+//       line_items: [
+//         {
+//           price_data: {
+//             currency: "usd",
+//             product_data: {
+//               name: product.name,
+//               description: product.description,
+//             },
+//             unit_amount: product.price,
+//           },
+//           quantity: 1,
+//         },
+//       ],
+//       mode: "payment",
+//       success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+//       // Include a canceled flag so the frontend can show an explanatory message
+//       // Note: Stripe only expands {CHECKOUT_SESSION_ID} in the success_url. The
+//       // cancel_url cannot receive the session id from Stripe, so we add a
+//       // simple query flag that returns the user to the checkout page.
+//       cancel_url: `${process.env.FRONTEND_URL}/checkout?productType=${productType}&canceled=true`,
+//       customer_email: email,
+//       metadata: {
+//         orderId: order._id.toString(),
+//         customerName,
+//         phone,
+//         secondPhone: secondPhone || "",
+//         mailingAddress,
+//         productType,
+//       },
+//     });
+
+//     // Update order with session ID
+//     order.stripeSessionId = session.id;
+//     await order.save();
+
+//     logger.info(`Checkout session created for order ${order._id}`);
+
+//     res.status(200).json({
+//       sessionId: session.id,
+//       url: session.url,
+//       orderId: order._id
+//     });
+//   } catch (error) {
+//     logger.error(`Error creating checkout session: ${error.message}`);
+//     res.status(500).json({ error: "Failed to create checkout session" });
+//   }
+// };
+
+
+exports.payRedirectToStripe = async (req, res) => {
   try {
-    // Check if Stripe is configured
     if (!stripe) {
-      return res.status(503).json({
-        error: "Payment system not configured. Please contact support.",
-        message: "Stripe API key is missing. Please configure STRIPE_SECRET_KEY in .env file."
-      });
+      return res.status(503).send("Stripe not configured. Missing STRIPE_SECRET_KEY.");
     }
 
-    const { productType, customerName, email, phone, secondPhone, mailingAddress } = req.body;
+    const { productType } = req.params;
 
-    // Validate product type
     if (!PRODUCTS[productType]) {
-      return res.status(400).json({ error: "Invalid product type" });
-    }
-
-    // Validate required fields
-    if (!customerName || !email || !phone || !mailingAddress) {
-      return res.status(400).json({ error: "All required fields must be provided" });
+      return res.status(400).send("Invalid product type");
     }
 
     const product = PRODUCTS[productType];
 
-    // Create order in database
+    // Create a minimal order (optional but good for tracking)
     const order = await Order.create({
-      customerName,
-      email,
-      phone,
-      secondPhone: secondPhone || "",
-      mailingAddress,
       productType,
       productName: product.name,
-      amount: product.price / 100, // Convert cents to dollars
+      amount: product.price / 100, // 0.10
       currency: "usd",
       paymentStatus: "pending",
     });
 
-    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+      mode: "payment",
       line_items: [
         {
           price_data: {
@@ -72,46 +146,126 @@ exports.createCheckoutSession = async (req, res) => {
           quantity: 1,
         },
       ],
-      mode: "payment",
+
+      // ✅ Stripe collects these details in the checkout itself
+      billing_address_collection: "required",     // "Mailing Address" best match in Stripe
+      phone_number_collection: { enabled: true }, // Phone
+
+      // ✅ Second phone number (Stripe Checkout custom field)
+      custom_fields: [
+        {
+          key: "second_phone_number",
+          label: { type: "custom", custom: "Second phone number (optional)" },
+          type: "text",
+          optional: true,
+        },
+      ],
+
+      // ✅ Client's required message at bottom of the checkout
+      custom_text: {
+        submit: {
+          message:
+            "We appreciate your business. Thank you for buying from us. If you feel there has been an error, or have questions, please contact pre@preethifernando.com Please put in subject line, Product/Service Purchase Question.",
+        },
+      },
+
+      // Success page can show popup message (your frontend or a simple page)
       success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      // Include a canceled flag so the frontend can show an explanatory message
-      // Note: Stripe only expands {CHECKOUT_SESSION_ID} in the success_url. The
-      // cancel_url cannot receive the session id from Stripe, so we add a
-      // simple query flag that returns the user to the checkout page.
       cancel_url: `${process.env.FRONTEND_URL}/checkout?productType=${productType}&canceled=true`,
-      customer_email: email,
+
       metadata: {
         orderId: order._id.toString(),
-        customerName,
-        phone,
-        secondPhone: secondPhone || "",
-        mailingAddress,
         productType,
+        productName: product.name,
       },
     });
 
-    // Update order with session ID
+    // Save session id
     order.stripeSessionId = session.id;
     await order.save();
 
-    logger.info(`Checkout session created for order ${order._id}`);
-
-    res.status(200).json({
-      sessionId: session.id,
-      url: session.url,
-      orderId: order._id
-    });
+    // ✅ IMPORTANT: redirect directly to Stripe checkout
+    return res.redirect(303, session.url);
   } catch (error) {
-    logger.error(`Error creating checkout session: ${error.message}`);
-    res.status(500).json({ error: "Failed to create checkout session" });
+    logger.error(`Error creating Stripe redirect session: ${error.message}`);
+    return res.status(500).send("Failed to start checkout");
   }
 };
 
-// Handle webhook from Stripe
+// // Handle webhook from Stripe
+// exports.handleWebhook = async (req, res) => {
+//   // Check if Stripe is configured
+//   if (!stripe) {
+//     logger.warn('Webhook received but Stripe is not configured');
+//     return res.status(503).json({ error: "Payment system not configured" });
+//   }
+
+//   const sig = req.headers["stripe-signature"];
+//   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+//   let event;
+
+//   try {
+//     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+//   } catch (err) {
+//     logger.error(`Webhook signature verification failed: ${err.message}`);
+//     return res.status(400).send(`Webhook Error: ${err.message}`);
+//   }
+
+//   // Handle the event
+//   switch (event.type) {
+//     case "checkout.session.completed":
+//       const session = event.data.object;
+
+//       try {
+//         // Update order status
+//         const order = await Order.findById(session.metadata.orderId);
+//         if (order) {
+//           order.paymentStatus = "completed";
+//           order.stripePaymentIntentId = session.payment_intent;
+//           await order.save();
+
+//           // logger.info(`Order ${order._id} marked as completed`);
+
+//           // Send payment receipt email (best-effort)
+//           try {
+//             await sendPaymentReceipt(order);
+//           } catch (mailErr) {
+//             logger.error(`Failed to send payment receipt for order ${order._id}`, mailErr);
+//           }
+//         }
+//       } catch (error) {
+//         logger.error(`Error updating order: ${error.message}`);
+//       }
+//       break;
+
+//     case "payment_intent.payment_failed":
+//       const paymentIntent = event.data.object;
+
+//       try {
+//         // Find order by payment intent and mark as failed
+//         const order = await Order.findOne({ stripePaymentIntentId: paymentIntent.id });
+//         if (order) {
+//           order.paymentStatus = "failed";
+//           await order.save();
+
+//           logger.info(`Order ${order._id} marked as failed`);
+//         }
+//       } catch (error) {
+//         logger.error(`Error updating failed order: ${error.message}`);
+//       }
+//       break;
+
+//     default:
+//       logger.info(`Unhandled event type ${event.type}`);
+//   }
+
+//   res.json({ received: true });
+// };
+
 exports.handleWebhook = async (req, res) => {
-  // Check if Stripe is configured
   if (!stripe) {
-    logger.warn('Webhook received but Stripe is not configured');
+    logger.warn("Webhook received but Stripe is not configured");
     return res.status(503).json({ error: "Payment system not configured" });
   }
 
@@ -119,7 +273,6 @@ exports.handleWebhook = async (req, res) => {
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   let event;
-
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
@@ -127,55 +280,120 @@ exports.handleWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the event
-  switch (event.type) {
-    case "checkout.session.completed":
-      const session = event.data.object;
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
 
-      try {
-        // Update order status
-        const order = await Order.findById(session.metadata.orderId);
-        if (order) {
-          order.paymentStatus = "completed";
-          order.stripePaymentIntentId = session.payment_intent;
-          await order.save();
+        // ✅ Get full session with customer + line item details
+        const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+          expand: ["line_items", "customer_details"],
+        });
 
-          // logger.info(`Order ${order._id} marked as completed`);
+        const orderId = fullSession.metadata?.orderId;
+        if (!orderId) {
+          logger.warn(`checkout.session.completed missing metadata.orderId (session: ${fullSession.id})`);
+          break;
+        }
 
-          // Send payment receipt email (best-effort)
-          try {
-            await sendPaymentReceipt(order);
-          } catch (mailErr) {
-            logger.error(`Failed to send payment receipt for order ${order._id}`, mailErr);
+        const order = await Order.findById(orderId);
+        if (!order) {
+          logger.warn(`Order not found for orderId=${orderId}`);
+          break;
+        }
+
+        // ✅ Identify purchased product name (so receipt/admin knows)
+        const lineItem = fullSession.line_items?.data?.[0];
+        const purchasedName =
+          lineItem?.description ||
+          fullSession.metadata?.productName ||
+          order.productName;
+
+        // ✅ Capture customer details from Stripe checkout
+        const customer = fullSession.customer_details || {};
+        const address = customer.address || {};
+
+        order.paymentStatus = "completed";
+        order.stripePaymentIntentId = fullSession.payment_intent;
+        order.stripeSessionId = fullSession.id;
+
+        // Store what they bought + amounts
+        order.productName = purchasedName;
+        order.amount = (fullSession.amount_total || 0) / 100;
+        order.currency = fullSession.currency || "usd";
+
+        // Store customer info (now it comes from Stripe, not req.body)
+        order.email = customer.email || order.email;
+        order.customerName = customer.name || order.customerName;
+        order.phone = customer.phone || order.phone;
+
+        // Mailing address (best match)
+        order.mailingAddress = [
+          address.line1,
+          address.line2,
+          address.city,
+          address.state,
+          address.postal_code,
+          address.country,
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        // ✅ Second phone from custom field (Stripe stores under custom_fields)
+        const secondPhoneField = (fullSession.custom_fields || []).find(
+          (f) => f.key === "second_phone_number"
+        );
+        order.secondPhone = secondPhoneField?.text?.value || order.secondPhone || "";
+
+        await order.save();
+
+        // Optional: send custom email (Stripe receipt can also be enabled)
+        try {
+          await sendPaymentReceipt(order);
+        } catch (mailErr) {
+          logger.error(`Failed to send payment receipt for order ${order._id}`, mailErr);
+        }
+
+        logger.info(`Order ${order._id} completed. Product: ${order.productName}`);
+        break;
+      }
+
+      case "checkout.session.expired": {
+        const session = event.data.object;
+        const orderId = session.metadata?.orderId;
+
+        if (orderId) {
+          const order = await Order.findById(orderId);
+          if (order && order.paymentStatus === "pending") {
+            order.paymentStatus = "expired";
+            await order.save();
+            logger.info(`Order ${order._id} marked as expired`);
           }
         }
-      } catch (error) {
-        logger.error(`Error updating order: ${error.message}`);
+        break;
       }
-      break;
 
-    case "payment_intent.payment_failed":
-      const paymentIntent = event.data.object;
+      case "payment_intent.payment_failed": {
+        const paymentIntent = event.data.object;
 
-      try {
-        // Find order by payment intent and mark as failed
         const order = await Order.findOne({ stripePaymentIntentId: paymentIntent.id });
         if (order) {
           order.paymentStatus = "failed";
           await order.save();
-
           logger.info(`Order ${order._id} marked as failed`);
         }
-      } catch (error) {
-        logger.error(`Error updating failed order: ${error.message}`);
+        break;
       }
-      break;
 
-    default:
-      logger.info(`Unhandled event type ${event.type}`);
+      default:
+        logger.info(`Unhandled event type ${event.type}`);
+    }
+
+    return res.json({ received: true });
+  } catch (error) {
+    logger.error(`Webhook handler error: ${error.message}`, error);
+    return res.status(500).json({ error: "Webhook handler failed" });
   }
-
-  res.json({ received: true });
 };
 
 // Get order details
