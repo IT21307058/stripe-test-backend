@@ -14,14 +14,35 @@ async function sendPaymentReceipt(order) {
   try {
     const from = process.env.NOTIFICATION_MAIL_FROM || process.env.MAIL_USER || 'no-reply@example.com';
 
-    // Load HTML template
-    const templatePath = path.join(__dirname, '..', 'email-templates', 'payment-receipt.html');
+    // Load HTML template. Try in this order:
+    // 1) explicit EMAIL_TEMPLATE_PATH env var
+    // 2) backend/email-templates (relative to this config file)
+    // 3) project-level email-templates (../..)
+    const candidates = [];
+    if (process.env.EMAIL_TEMPLATE_PATH) candidates.push(process.env.EMAIL_TEMPLATE_PATH);
+    candidates.push(path.join(__dirname, 'email-templates', 'payment-receipt.html'));
+    candidates.push(path.join(__dirname, '..', 'email-templates', 'payment-receipt.html'));
+    candidates.push(path.join(__dirname, '..', '..', 'email-templates', 'payment-receipt.html'));
+
     let html = '';
-    try {
-      html = fs.readFileSync(templatePath, 'utf8');
-    } catch (readErr) {
-      logger.warn('Payment receipt template not found; using simple fallback HTML');
+    let usedPath = null;
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) {
+          html = fs.readFileSync(p, 'utf8');
+          usedPath = p;
+          break;
+        }
+      } catch (e) {
+        // continue to next candidate
+      }
+    }
+
+    if (!usedPath) {
+      logger.warn('Payment receipt template not found in candidates; using simple fallback HTML', { candidates });
       html = `<p>Hi ${order.customerName || ''},</p><p>Thank you for your purchase of <strong>${order.productName || ''}</strong>.</p>`;
+    } else {
+      logger.debug('Using payment receipt template', { path: usedPath });
     }
 
     // Prepare values for template
