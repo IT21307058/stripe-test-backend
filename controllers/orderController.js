@@ -202,12 +202,12 @@ exports.handleWebhook = async (req, res) => {
 
         // Notify merchant specifically for AI Mastery registrations
         try {
-          if (
-            order.productType === 'ai-mastery' ||
-            (order.productName || '').toLowerCase().includes('ai mastery')
-          ) {
+          // if (
+          //   order.productType === 'ai-mastery' ||
+          //   (order.productName || '').toLowerCase().includes('ai mastery')
+          // ) {
             await sendMerchantRegistrationNotification(order);
-          }
+          // }
         } catch (notifyErr) {
           logger.error(`Failed to send merchant registration notification for order ${order._id}`, notifyErr);
         }

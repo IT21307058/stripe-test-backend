@@ -100,7 +100,19 @@ async function sendMerchantRegistrationNotification(order) {
     }
 
     const from = process.env.NOTIFICATION_MAIL_FROM || process.env.MAIL_USER || 'no-reply@example.com';
-    const subject = 'Preethi Fernando registered for your AI mastery class.';
+
+    // Subject varies by product: keep the special AI Mastery wording,
+    // otherwise use the product name to create a descriptive subject.
+    let subject;
+    if (
+      order.productType === 'ai-mastery' ||
+      (order.productName || '').toLowerCase().includes('ai mastery')
+    ) {
+      subject = 'Preethi Fernando registered for your AI mastery class.';
+    } else {
+      const prod = order.productName || order.productType || 'Product';
+      subject = `New purchase: ${prod}`;
+    }
 
     const amount = (typeof order.amount === 'number') ? `$${Number(order.amount).toFixed(2)}` : order.amount || '';
 
