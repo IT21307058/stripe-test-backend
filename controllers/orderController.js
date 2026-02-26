@@ -194,11 +194,11 @@ exports.handleWebhook = async (req, res) => {
         await order.save();
 
         // Optional: send customer receipt
-        try {
-          await sendPaymentReceipt(order);
-        } catch (mailErr) {
-          logger.error(`Failed to send payment receipt for order ${order._id}`, mailErr);
-        }
+        // try {
+        //   await sendPaymentReceipt(order);
+        // } catch (mailErr) {
+        //   logger.error(`Failed to send payment receipt for order ${order._id}`, mailErr);
+        // }
 
         // Notify merchant specifically for AI Mastery registrations
         try {
