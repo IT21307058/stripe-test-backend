@@ -91,4 +91,46 @@ async function sendPaymentReceipt(order) {
   }
 }
 
-module.exports = { sendPaymentReceipt };
+async function sendMerchantRegistrationNotification(order) {
+  try {
+    const to = process.env.ADMIN_MAIL;
+    if (!to) {
+      logger.warn('No merchant notification address configured (ADMIN_MAIL)');
+      return;
+    }
+
+    const from = process.env.NOTIFICATION_MAIL_FROM || process.env.MAIL_USER || 'no-reply@example.com';
+    const subject = 'Preethi Fernando registered for your AI mastery class.';
+
+    const amount = (typeof order.amount === 'number') ? `$${Number(order.amount).toFixed(2)}` : order.amount || '';
+
+    const html = `<p>${subject}</p>
+      <ul>
+        <li>Order ID: ${order.orderId || order._id}</li>
+        <li>Product: ${order.productName || ''}</li>
+        <li>Name: ${order.customerName || ''}</li>
+        <li>Email: ${order.email || ''}</li>
+        <li>Phone: ${order.phone || ''}</li>
+        <li>Amount: ${amount}</li>
+      </ul>`;
+
+    const text = html.replace(/<[^>]+>/g, '');
+
+    const msg = {
+      to,
+      from,
+      subject,
+      text,
+      html,
+    };
+
+    await sgMail.send(msg);
+    logger.info(`Merchant notification sent for order ${order._id} to ${to}`);
+  } catch (err) {
+    logger.error(`Failed to send merchant notification for order ${order._id}`, err);
+    throw err;
+  }
+}
+
+module.exports = { sendPaymentReceipt, sendMerchantRegistrationNotification };
+

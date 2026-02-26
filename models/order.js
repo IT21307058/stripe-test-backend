@@ -25,7 +25,7 @@ const orderSchema = new mongoose.Schema(
     productType: {
       type: String,
       // required: [true, "Product type is required"],
-      enum: ["chatgpt-class", "book"],
+      enum: ["chatgpt-class", "book", "ai-mastery"],
     },
     productName: {
       type: String,
